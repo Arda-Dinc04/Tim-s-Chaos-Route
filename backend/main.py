@@ -1,4 +1,7 @@
+import logging
 import os
+import time
+from contextlib import asynccontextmanager
 from typing import Literal
 
 import requests
@@ -6,7 +9,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from routing import RouteError, get_route
+from routing import RouteError, get_route, load_graph, load_undirected_graph
+
+logger = logging.getLogger("shortcut_bike_router")
+logging.basicConfig(level=logging.INFO)
 
 
 class Point(BaseModel):
@@ -28,7 +34,34 @@ NYC_BOUNDS = {
     "max_lng": -73.65,
 }
 
-app = FastAPI(title="Shortcut Bike Router API")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Preload the routing graphs at server boot so the first /route call
+    doesn't pay the cache-hydration cost. On a cold container this turns a
+    ~30-120s user-facing hang into a one-time startup warmup.
+
+    Set PRELOAD_GRAPHS=0 to skip (useful for local dev where you want fast
+    uvicorn --reload cycles).
+    """
+    if os.environ.get("PRELOAD_GRAPHS", "1").lower() not in ("0", "false", "no"):
+        t0 = time.perf_counter()
+        try:
+            logger.info("Preloading directed bike graph…")
+            load_graph()
+            logger.info("Preloading undirected bike graph…")
+            load_undirected_graph()
+            logger.info(
+                "Graphs preloaded in %.2fs", time.perf_counter() - t0
+            )
+        except Exception:
+            logger.exception(
+                "Graph preload failed; will fall back to lazy load on first /route call"
+            )
+    yield
+
+
+app = FastAPI(title="Shortcut Bike Router API", lifespan=lifespan)
 
 _DEFAULT_CORS = [
     "http://localhost:3000",

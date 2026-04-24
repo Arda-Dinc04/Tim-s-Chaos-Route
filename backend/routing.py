@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pickle
 from pathlib import Path
 from threading import RLock
 from typing import Literal, TypedDict
@@ -19,6 +20,8 @@ SHORTCUT_WARNING = (
 BASE_DIR = Path(__file__).resolve().parent
 GRAPH_CACHE_DIR = BASE_DIR / "graph_cache"
 GRAPH_CACHE_PATH = GRAPH_CACHE_DIR / "manhattan_brooklyn_bike.graphml"
+GRAPH_PICKLE_PATH = GRAPH_CACHE_DIR / "manhattan_brooklyn_bike.pkl"
+UNDIRECTED_PICKLE_PATH = GRAPH_CACHE_DIR / "manhattan_brooklyn_bike_undirected.pkl"
 PLACES = [
     "Manhattan, New York City, New York, USA",
     "Brooklyn, New York City, New York, USA",
@@ -27,6 +30,18 @@ PLACES = [
 _graph_lock = RLock()
 _directed_graph: nx.MultiDiGraph | None = None
 _undirected_graph: nx.MultiGraph | None = None
+
+
+def _load_pickle(path: Path):
+    with path.open("rb") as f:
+        return pickle.load(f)
+
+
+def _save_pickle(path: Path, obj) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("wb") as f:
+        pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
+    tmp.replace(path)
 
 
 class RouteError(Exception):
@@ -52,19 +67,37 @@ def load_graph() -> nx.MultiDiGraph:
             return _directed_graph
 
         GRAPH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        if GRAPH_CACHE_PATH.exists():
-            graph = ox.io.load_graphml(GRAPH_CACHE_PATH)
-        else:
-            ox.settings.use_cache = True
-            ox.settings.log_console = True
-            graph = ox.graph.graph_from_place(
-                PLACES,
-                network_type="bike",
-                simplify=True,
-                retain_all=True,
-                truncate_by_edge=True,
-            )
-            ox.io.save_graphml(graph, GRAPH_CACHE_PATH)
+
+        graph: nx.MultiDiGraph | None = None
+        if GRAPH_PICKLE_PATH.exists():
+            try:
+                graph = _load_pickle(GRAPH_PICKLE_PATH)
+            except Exception:
+                # Stale/incompatible pickle (e.g. after a lib upgrade): fall back
+                # to the portable graphml and rebuild the pickle.
+                graph = None
+
+        if graph is None:
+            if GRAPH_CACHE_PATH.exists():
+                graph = ox.io.load_graphml(GRAPH_CACHE_PATH)
+            else:
+                ox.settings.use_cache = True
+                ox.settings.log_console = True
+                graph = ox.graph.graph_from_place(
+                    PLACES,
+                    network_type="bike",
+                    simplify=True,
+                    retain_all=True,
+                    truncate_by_edge=True,
+                )
+                ox.io.save_graphml(graph, GRAPH_CACHE_PATH)
+
+            try:
+                _save_pickle(GRAPH_PICKLE_PATH, graph)
+            except Exception:
+                # Pickle is only a speed cache; failing to write it shouldn't
+                # break routing.
+                pass
 
         _directed_graph = graph
         return graph
@@ -80,8 +113,24 @@ def load_undirected_graph() -> nx.MultiGraph:
         if _undirected_graph is not None:
             return _undirected_graph
 
-        _undirected_graph = ox.convert.to_undirected(load_graph())
-        return _undirected_graph
+        GRAPH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+        graph: nx.MultiGraph | None = None
+        if UNDIRECTED_PICKLE_PATH.exists():
+            try:
+                graph = _load_pickle(UNDIRECTED_PICKLE_PATH)
+            except Exception:
+                graph = None
+
+        if graph is None:
+            graph = ox.convert.to_undirected(load_graph())
+            try:
+                _save_pickle(UNDIRECTED_PICKLE_PATH, graph)
+            except Exception:
+                pass
+
+        _undirected_graph = graph
+        return graph
 
 
 def calculate_time(distance_meters: float) -> float:

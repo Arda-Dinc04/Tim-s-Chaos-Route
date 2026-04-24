@@ -196,28 +196,72 @@ textarea {
 }
 
 .tim-character-card {
+  appearance: none;
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(21, 21, 21, 0.1);
   border-radius: 8px;
   bottom: calc(30px + env(safe-area-inset-bottom));
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  font: inherit;
   left: calc(16px + env(safe-area-inset-left));
   height: 118px;
   max-width: 92px;
   overflow: hidden;
   padding: 5px;
-  pointer-events: none;
   position: absolute;
+  text-align: left;
+  transition: transform 140ms ease, box-shadow 140ms ease;
   z-index: 840;
 }
 
-.tim-character-card img {
+.tim-character-card:hover {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  transform: scale(1.02);
+}
+
+.tim-character-card:focus-visible {
+  outline: 2px solid #151515;
+  outline-offset: 3px;
+}
+
+.tim-character-thumb {
   display: block;
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.25));
   height: 108px;
   object-fit: cover;
-  object-position: 50% 6%;
+  object-position: 50% 20%;
   width: 100%;
+}
+
+.startscreen-lightbox {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.7);
+  box-sizing: border-box;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  margin: 0;
+  padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+    calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  position: fixed;
+  z-index: 5000;
+}
+
+.startscreen-lightbox-content {
+  max-height: 100%;
+  max-width: 100%;
+}
+
+.startscreen-lightbox-image {
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  display: block;
+  height: auto;
+  max-height: min(92dvh, 900px);
+  max-width: min(100%, 900px);
+  object-fit: contain;
+  width: auto;
 }
 
 .stats-grid {
@@ -405,7 +449,7 @@ textarea {
     max-width: 74px;
   }
 
-  .tim-character-card img {
+  .tim-character-thumb {
     height: 82px;
   }
 

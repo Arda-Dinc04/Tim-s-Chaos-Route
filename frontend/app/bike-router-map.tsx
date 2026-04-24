@@ -458,6 +458,18 @@ export default function BikeRouterMap() {
   const [route, setRoute] = useState<RouteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [startScreenExpanded, setStartScreenExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!startScreenExpanded) return;
+    function onKeydown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setStartScreenExpanded(false);
+      }
+    }
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, [startScreenExpanded]);
 
   const selectedMapStyle = MAP_STYLES[mapStyle];
   const titleTone = mapStyle === "carto-dark" ? "dark" : "light";
@@ -701,12 +713,37 @@ export default function BikeRouterMap() {
         />
       </aside>
 
-      <aside className="tim-character-card" aria-label="Tim status character">
-        <img
-          alt="Tim status character"
-          src="/healthBarTim.png"
-        />
-      </aside>
+      <button
+        className="tim-character-card"
+        onClick={() => setStartScreenExpanded(true)}
+        type="button"
+        aria-label="Expand start screen image"
+        aria-haspopup="dialog"
+        aria-expanded={startScreenExpanded}
+      >
+        <img alt="" className="tim-character-thumb" src="/StartScreen.png" />
+      </button>
+
+      {startScreenExpanded && (
+        <div
+          className="startscreen-lightbox"
+          onClick={() => setStartScreenExpanded(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Start screen image"
+        >
+          <div
+            className="startscreen-lightbox-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              alt=""
+              className="startscreen-lightbox-image"
+              src="/StartScreen.png"
+            />
+          </div>
+        </div>
+      )}
 
       <button
         aria-label="Recenter on your current location"
