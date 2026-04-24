@@ -31,10 +31,17 @@ input {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 .leaflet-container {
   height: 100%;
   width: 100%;
   background: #ded8ca;
+  touch-action: pan-x pan-y;
 }
 
 .leaflet-control-attribution {
@@ -74,9 +81,12 @@ input {
 
 .map-shell {
   height: 100vh;
+  height: 100dvh;
   min-height: 620px;
+  min-height: 100dvh;
   overflow: hidden;
   position: relative;
+  overscroll-behavior: none;
 }
 
 .control-card {
@@ -84,11 +94,12 @@ input {
   border: 1px solid rgba(21, 21, 21, 0.1);
   border-radius: 8px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
-  left: 16px;
+  left: calc(16px + env(safe-area-inset-left));
   max-width: min(390px, calc(100vw - 32px));
+  overscroll-behavior: contain;
   padding: 16px;
   position: absolute;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top));
   z-index: 900;
 }
 
@@ -102,9 +113,9 @@ input {
   padding: 8px 10px 8px 14px;
   pointer-events: none;
   position: absolute;
-  right: 16px;
+  right: calc(16px + env(safe-area-inset-right));
   text-align: right;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top));
   z-index: 1100;
 }
 
@@ -160,7 +171,7 @@ input {
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(21, 21, 21, 0.12);
   border-radius: 8px;
-  bottom: 30px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
   color: #151515;
   cursor: pointer;
@@ -168,7 +179,7 @@ input {
   height: 44px;
   justify-content: center;
   position: absolute;
-  right: 16px;
+  right: calc(16px + env(safe-area-inset-right));
   transition: transform 160ms ease, background 160ms ease;
   width: 44px;
   z-index: 1050;
@@ -188,9 +199,9 @@ input {
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(21, 21, 21, 0.1);
   border-radius: 8px;
-  bottom: 30px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
-  left: 16px;
+  left: calc(16px + env(safe-area-inset-left));
   height: 118px;
   max-width: 92px;
   overflow: hidden;
@@ -242,6 +253,8 @@ input {
   left: 0;
   max-height: 220px;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 4px;
   position: absolute;
   right: 0;
@@ -324,30 +337,60 @@ input {
   opacity: 0.68;
 }
 
+@media (max-width: 380px) {
+  .selects-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .selects-row > label:nth-child(2) {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 700px) {
   .map-shell {
-    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .location-start-button {
+    font-size: 13px;
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .search-clear-button {
+    height: 28px;
+    width: 28px;
   }
 
   .control-card {
-    bottom: 14px;
-    left: 12px;
-    max-height: calc(100vh - 28px);
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    left: calc(12px + env(safe-area-inset-left));
+    max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     overflow: auto;
+    overscroll-behavior: contain;
     top: auto;
-    width: calc(100vw - 24px);
+    width: calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
   }
 
   .route-title {
-    left: 12px;
-    max-width: calc(100vw - 24px);
-    right: 12px;
+    left: calc(12px + env(safe-area-inset-left));
+    max-width: calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    right: calc(12px + env(safe-area-inset-right));
     text-align: left;
-    top: 12px;
+    top: calc(12px + env(safe-area-inset-top));
   }
 
   .route-title h2 {
-    font-size: clamp(20px, 6vw, 30px);
+    font-size: clamp(18px, 5.5vw, 26px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .route-title p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .route-title img {
@@ -356,8 +399,8 @@ input {
   }
 
   .tim-character-card {
-    bottom: 104px;
-    left: 12px;
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    left: calc(12px + env(safe-area-inset-left));
     height: 92px;
     max-width: 74px;
   }
@@ -368,7 +411,7 @@ input {
 
   .recenter-button {
     bottom: auto;
-    right: 12px;
-    top: 106px;
+    right: calc(12px + env(safe-area-inset-right));
+    top: calc(106px + env(safe-area-inset-top));
   }
 }
