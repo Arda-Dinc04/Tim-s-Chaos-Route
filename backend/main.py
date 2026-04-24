@@ -48,16 +48,27 @@ def _cors_allow_origins() -> list[str]:
             out.append(origin)
     extra = os.environ.get("CORS_ALLOW_ORIGINS", "")
     for part in extra.split(","):
-        o = part.strip()
+        o = part.strip().rstrip("/")
         if o and o not in seen:
             seen.add(o)
             out.append(o)
     return out
 
 
+def _cors_vercel_regex() -> str | None:
+    """Vercel preview deploys use a unique hostname (…-abc123-….vercel.app) each time.
+    The production URL tim-s-chaos-route.vercel.app also matches this pattern.
+    Set CORS_VERCEL_ALLOW_REGEX=0 to disable (e.g. forked / locked-down API).
+    """
+    if os.environ.get("CORS_VERCEL_ALLOW_REGEX", "1").lower() in ("0", "false", "no"):
+        return None
+    return r"^https://tim-s-chaos-route.*\.vercel\.app$"
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_allow_origins(),
+    allow_origin_regex=_cors_vercel_regex(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
