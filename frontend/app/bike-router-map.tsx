@@ -16,7 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import L from "leaflet";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   Marker,
@@ -441,6 +441,28 @@ function CompareStats({
   );
 }
 
+type SheetState = "collapsed" | "half" | "full";
+
+const SHEET_PEEK_PX = 88;
+const SHEET_HALF_PX = 420;
+const SHEET_VH_FRACTION = 0.92;
+
+function offsetForSheetState(state: SheetState, sheetHeightPx: number): number {
+  if (state === "full") return 0;
+  if (state === "half") return Math.max(0, sheetHeightPx - SHEET_HALF_PX);
+  return Math.max(0, sheetHeightPx - SHEET_PEEK_PX);
+}
+
+function sheetStateForOffset(offsetPx: number, sheetHeightPx: number): SheetState {
+  const halfOffset = Math.max(0, sheetHeightPx - SHEET_HALF_PX);
+  const collapsedOffset = Math.max(0, sheetHeightPx - SHEET_PEEK_PX);
+  const fullToHalf = halfOffset / 2;
+  const halfToCollapsed = halfOffset + (collapsedOffset - halfOffset) / 2;
+  if (offsetPx < fullToHalf) return "full";
+  if (offsetPx < halfToCollapsed) return "half";
+  return "collapsed";
+}
+
 export default function BikeRouterMap() {
   const [mode, setMode] = useState<Mode>("legal");
   const [mapStyle, setMapStyle] = useState<MapStyleId>("carto-light");
@@ -459,6 +481,105 @@ export default function BikeRouterMap() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startScreenExpanded, setStartScreenExpanded] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [sheetState, setSheetState] = useState<SheetState>("collapsed");
+  const [sheetHeightPx, setSheetHeightPx] = useState(() =>
+    typeof window === "undefined" ? SHEET_HALF_PX : window.innerHeight * SHEET_VH_FRACTION,
+  );
+  const [dragOffsetPx, setDragOffsetPx] = useState<number | null>(null);
+  const pointerStartRef = useRef<{
+    y: number;
+    baseOffsetPx: number;
+    pointerId: number;
+    sheetHeightPx: number;
+    moved: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const update = () => {
+      setIsMobile(mq.matches);
+      setSheetHeightPx(window.innerHeight * SHEET_VH_FRACTION);
+    };
+    update();
+    mq.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      mq.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, []);
+
+  const sheetOffsetPx = useMemo(
+    () => {
+      const fallbackHeight =
+        typeof window === "undefined"
+          ? SHEET_HALF_PX
+          : window.innerHeight * SHEET_VH_FRACTION;
+      return dragOffsetPx ?? offsetForSheetState(sheetState, sheetHeightPx || fallbackHeight);
+    },
+    [dragOffsetPx, sheetHeightPx, sheetState],
+  );
+
+  const openSheetIfMobile = useCallback(
+    (state: SheetState) => {
+      if (!isMobile) return;
+      setSheetState(state);
+    },
+    [isMobile],
+  );
+
+  function handleSheetHandlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isMobile) return;
+    const currentSheetHeightPx = sheetHeightPx || window.innerHeight * SHEET_VH_FRACTION;
+    pointerStartRef.current = {
+      y: event.clientY,
+      baseOffsetPx: offsetForSheetState(sheetState, currentSheetHeightPx),
+      pointerId: event.pointerId,
+      sheetHeightPx: currentSheetHeightPx,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragOffsetPx(pointerStartRef.current.baseOffsetPx);
+  }
+
+  function handleSheetHandlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const state = pointerStartRef.current;
+    if (!state) return;
+    const dy = event.clientY - state.y;
+    if (Math.abs(dy) > 4) state.moved = true;
+    const maxOffset = Math.max(0, state.sheetHeightPx - 48);
+    const next = Math.max(0, Math.min(maxOffset, state.baseOffsetPx + dy));
+    setDragOffsetPx(next);
+  }
+
+  function handleSheetHandlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const state = pointerStartRef.current;
+    if (!state) {
+      setDragOffsetPx(null);
+      return;
+    }
+    if (!state.moved) {
+      setSheetState((cur) =>
+        cur === "collapsed" ? "half" : cur === "half" ? "full" : "collapsed",
+      );
+    } else {
+      const dy = event.clientY - state.y;
+      const maxOffset = Math.max(0, state.sheetHeightPx - 48);
+      const finalOffset = Math.max(0, Math.min(maxOffset, state.baseOffsetPx + dy));
+      setSheetState(sheetStateForOffset(finalOffset, state.sheetHeightPx));
+    }
+    pointerStartRef.current = null;
+    setDragOffsetPx(null);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore — pointer may have been released/cancelled already
+    }
+  }
 
   useEffect(() => {
     if (!startScreenExpanded) return;
@@ -511,6 +632,7 @@ export default function BikeRouterMap() {
     setActiveSearchField(field);
     setSuggestions([]);
     setRoute(null);
+    openSheetIfMobile("full");
 
     if (field === "start") {
       setStartQuery(value);
@@ -521,12 +643,18 @@ export default function BikeRouterMap() {
     }
   }
 
+  function handleSearchFocus(field: SearchField) {
+    setActiveSearchField(field);
+    openSheetIfMobile("full");
+  }
+
   function handleSuggestionSelect(field: SearchField, suggestion: GeocodeSuggestion) {
     const point = { lat: suggestion.lat, lng: suggestion.lng };
     setError(null);
     setSuggestions([]);
     setActiveSearchField(null);
     setRoute(null);
+    openSheetIfMobile("half");
 
     if (field === "start") {
       setStart(point);
@@ -713,16 +841,18 @@ export default function BikeRouterMap() {
         />
       </aside>
 
-      <button
-        className="tim-character-card"
-        onClick={() => setStartScreenExpanded(true)}
-        type="button"
-        aria-label="Expand start screen image"
-        aria-haspopup="dialog"
-        aria-expanded={startScreenExpanded}
-      >
-        <img alt="" className="tim-character-thumb" src="/StartScreen.png" />
-      </button>
+      {!isMobile && (
+        <button
+          className="tim-character-card"
+          onClick={() => setStartScreenExpanded(true)}
+          type="button"
+          aria-label="Expand start screen image"
+          aria-haspopup="dialog"
+          aria-expanded={startScreenExpanded}
+        >
+          <img alt="" className="tim-character-thumb" src="/StartScreen.png" />
+        </button>
+      )}
 
       {startScreenExpanded && (
         <div
@@ -755,163 +885,191 @@ export default function BikeRouterMap() {
         {isLocating ? <Loader2 className="animate-spin" size={20} /> : <Crosshair size={20} />}
       </button>
 
-      <section className="control-card">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">
-              <Bike size={15} />
-              NYC bike routing
+      <section
+        className={`control-card sheet-${sheetState}${
+          dragOffsetPx !== null ? " is-dragging" : ""
+        }`}
+        style={
+          dragOffsetPx !== null
+            ? ({
+                "--sheet-offset": `${sheetOffsetPx}px`,
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        <div
+          className="sheet-handle"
+          onPointerDown={handleSheetHandlePointerDown}
+          onPointerMove={handleSheetHandlePointerMove}
+          onPointerUp={handleSheetHandlePointerUp}
+          onPointerCancel={handleSheetHandlePointerUp}
+          role="button"
+          tabIndex={0}
+          aria-label={`${
+            sheetState === "full" ? "Collapse" : "Expand"
+          } controls panel. Drag to resize.`}
+          aria-expanded={sheetState !== "collapsed"}
+        >
+          <span className="sheet-handle-grip" />
+        </div>
+        <div className="sheet-body">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">
+                <Bike size={15} />
+                NYC bike routing
+              </div>
+              <h1 className="text-2xl font-black leading-none">Shortcut Bike Router</h1>
             </div>
-            <h1 className="text-2xl font-black leading-none">Shortcut Bike Router</h1>
+            <button
+              aria-label="Clear route"
+              className="reset-button grid h-11 w-11 shrink-0 place-items-center rounded-md bg-neutral-950 text-white transition hover:bg-neutral-700"
+              onClick={clearRoute}
+              type="button"
+            >
+              <RotateCcw size={18} />
+            </button>
           </div>
-          <button
-            aria-label="Clear route"
-            className="reset-button grid h-11 w-11 shrink-0 place-items-center rounded-md bg-neutral-950 text-white transition hover:bg-neutral-700"
-            onClick={clearRoute}
-            type="button"
-          >
-            <RotateCcw size={18} />
-          </button>
-        </div>
 
-        <div className="mb-3 space-y-3">
-          <SearchBox
-            activeSearchField={activeSearchField}
-            field="start"
-            isSearching={isSearching}
-            label="Start"
-            onFocus={setActiveSearchField}
-            onQueryChange={handleQueryChange}
-            onClear={clearSearchField}
-            onSelect={handleSuggestionSelect}
-            placeholder="Search a start place"
-            query={startQuery}
-            suggestions={suggestions}
-          />
-          <button
-            className="location-start-button"
-            disabled={isLocating}
-            onClick={() => requestUserLocation(true)}
-            type="button"
-          >
-            {isLocating ? <Loader2 className="animate-spin" size={15} /> : <Navigation size={15} />}
-            <span>Use current location as start</span>
-          </button>
-          <SearchBox
-            activeSearchField={activeSearchField}
-            field="end"
-            isSearching={isSearching}
-            label="Destination"
-            onFocus={setActiveSearchField}
-            onQueryChange={handleQueryChange}
-            onClear={clearSearchField}
-            onSelect={handleSuggestionSelect}
-            placeholder="Search a destination"
-            query={endQuery}
-            suggestions={suggestions}
-          />
-        </div>
-
-        <div className="selects-row mb-3 grid grid-cols-3 gap-2">
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
-              Mode
-            </span>
-            <select
-              className="w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm font-bold text-neutral-950 outline-none ring-0 transition focus:border-neutral-950"
-              onChange={(event) => setMode(event.target.value as Mode)}
-              value={mode}
+          <div className="mb-3 space-y-3">
+            <SearchBox
+              activeSearchField={activeSearchField}
+              field="start"
+              isSearching={isSearching}
+              label="Start"
+              onFocus={handleSearchFocus}
+              onQueryChange={handleQueryChange}
+              onClear={clearSearchField}
+              onSelect={handleSuggestionSelect}
+              placeholder="Search a start place"
+              query={startQuery}
+              suggestions={suggestions}
+            />
+            <button
+              className="location-start-button"
+              disabled={isLocating}
+              onClick={() => requestUserLocation(true)}
+              type="button"
             >
-              {MODES.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
+              {isLocating ? <Loader2 className="animate-spin" size={15} /> : <Navigation size={15} />}
+              <span>Use current location as start</span>
+            </button>
+            <SearchBox
+              activeSearchField={activeSearchField}
+              field="end"
+              isSearching={isSearching}
+              label="Destination"
+              onFocus={handleSearchFocus}
+              onQueryChange={handleQueryChange}
+              onClear={clearSearchField}
+              onSelect={handleSuggestionSelect}
+              placeholder="Search a destination"
+              query={endQuery}
+              suggestions={suggestions}
+            />
+          </div>
+
+          <div className="selects-row mb-3 grid grid-cols-3 gap-2">
+            <label className="block min-w-0">
+              <span className="mb-1 block text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
+                Mode
+              </span>
+              <select
+                className="w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm font-bold text-neutral-950 outline-none ring-0 transition focus:border-neutral-950"
+                onChange={(event) => setMode(event.target.value as Mode)}
+                value={mode}
+              >
+                {MODES.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block min-w-0">
+              <span className="mb-1 flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
+                <Zap size={12} className="text-amber-500" />
+                Bike
+              </span>
+              <select
+                className="w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm font-bold text-neutral-950 outline-none ring-0 transition focus:border-neutral-950"
+                onChange={(event) => setBikeType(event.target.value as BikeType)}
+                value={bikeType}
+              >
+                {BIKE_TYPES.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block min-w-0">
+              <span className="mb-1 flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
+                <Layers size={12} />
+                Map
+              </span>
+              <select
+                className="w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm font-bold text-neutral-950 outline-none ring-0 transition focus:border-neutral-950"
+                onChange={(event) => setMapStyle(event.target.value as MapStyleId)}
+                value={mapStyle}
+              >
+                {Object.entries(MAP_STYLES).map(([id, style]) => (
+                  <option key={id} value={id}>
+                    {style.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mb-4 flex items-center gap-2 rounded-md bg-neutral-950 px-3 py-2 text-sm font-semibold text-white">
+            <MapPin size={16} />
+            Search above or click the map to drop start and destination pins.
+          </div>
+
+          <div className="space-y-3">
+            {isLoading && (
+              <p className="rounded-md bg-neutral-100 p-3 text-sm font-bold">
+                Calculating route...
+              </p>
+            )}
+
+            {error && (
+              <p className="rounded-md bg-red-50 p-3 text-sm font-bold text-red-800 break-words">
+                {error}
+              </p>
+            )}
+
+            {route &&
+              (isCompareRoute(route) ? (
+                <CompareStats
+                  bikeType={bikeType}
+                  route={route}
+                  speedMph={BIKE_SPEED_MPH[bikeType]}
+                />
+              ) : (
+                <SingleStats
+                  bikeType={bikeType}
+                  route={route}
+                  speedMph={BIKE_SPEED_MPH[bikeType]}
+                />
               ))}
-            </select>
-          </label>
 
-          <label className="block min-w-0">
-            <span className="mb-1 flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
-              <Zap size={12} className="text-amber-500" />
-              Bike
-            </span>
-            <select
-              className="w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm font-bold text-neutral-950 outline-none ring-0 transition focus:border-neutral-950"
-              onChange={(event) => setBikeType(event.target.value as BikeType)}
-              value={bikeType}
-            >
-              {BIKE_TYPES.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            {route && !isCompareRoute(route) && (
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">
+                Mode used: {route.mode}
+              </p>
+            )}
 
-          <label className="block min-w-0">
-            <span className="mb-1 flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
-              <Layers size={12} />
-              Map
-            </span>
-            <select
-              className="w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm font-bold text-neutral-950 outline-none ring-0 transition focus:border-neutral-950"
-              onChange={(event) => setMapStyle(event.target.value as MapStyleId)}
-              value={mapStyle}
-            >
-              {Object.entries(MAP_STYLES).map(([id, style]) => (
-                <option key={id} value={id}>
-                  {style.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="mb-4 flex items-center gap-2 rounded-md bg-neutral-950 px-3 py-2 text-sm font-semibold text-white">
-          <MapPin size={16} />
-          Search above or click the map to drop start and destination pins.
-        </div>
-
-        <div className="space-y-3">
-          {isLoading && (
-            <p className="rounded-md bg-neutral-100 p-3 text-sm font-bold">
-              Calculating route...
-            </p>
-          )}
-
-          {error && (
-            <p className="rounded-md bg-red-50 p-3 text-sm font-bold text-red-800 break-words">
-              {error}
-            </p>
-          )}
-
-          {route &&
-            (isCompareRoute(route) ? (
-              <CompareStats
-                bikeType={bikeType}
-                route={route}
-                speedMph={BIKE_SPEED_MPH[bikeType]}
-              />
-            ) : (
-              <SingleStats
-                bikeType={bikeType}
-                route={route}
-                speedMph={BIKE_SPEED_MPH[bikeType]}
-              />
-            ))}
-
-          {route && !isCompareRoute(route) && (
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">
-              Mode used: {route.mode}
-            </p>
-          )}
-
-          {hasShortcutWarning && (
-            <div className="warning-card flex gap-2 text-sm font-bold">
-              <AlertTriangle className="mt-0.5 shrink-0" size={17} />
-              <span>Experimental route. May include wrong-way or non-standard segments.</span>
-            </div>
-          )}
+            {hasShortcutWarning && (
+              <div className="warning-card flex gap-2 text-sm font-bold">
+                <AlertTriangle className="mt-0.5 shrink-0" size={17} />
+                <span>Experimental route. May include wrong-way or non-standard segments.</span>
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </main>

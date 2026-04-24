@@ -103,6 +103,18 @@ textarea {
   z-index: 900;
 }
 
+.sheet-handle {
+  display: none;
+}
+
+.sheet-handle-grip {
+  background: rgba(21, 21, 21, 0.28);
+  border-radius: 999px;
+  display: block;
+  height: 5px;
+  width: 42px;
+}
+
 .route-title {
   align-items: center;
   border-radius: 7px;
@@ -408,13 +420,77 @@ textarea {
   }
 
   .control-card {
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    left: calc(12px + env(safe-area-inset-left));
-    max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    overflow: auto;
-    overscroll-behavior: contain;
+    background: #ffffff;
+    border: 1px solid rgba(21, 21, 21, 0.08);
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    bottom: 0;
+    box-shadow: 0 -10px 36px rgba(0, 0, 0, 0.18);
+    height: 92dvh;
+    left: 0;
+    max-height: 92dvh;
+    max-width: none;
+    overflow: hidden;
+    padding: 0;
+    position: fixed;
+    right: 0;
     top: auto;
-    width: calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    touch-action: pan-y;
+    transform: translate3d(0, 0, 0);
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    width: 100%;
+    z-index: 1200;
+  }
+
+  .control-card.is-dragging {
+    transform: translateY(var(--sheet-offset, 0px));
+    transition: none;
+  }
+
+  .control-card.sheet-half {
+    transform: translateY(calc(92dvh - 420px));
+  }
+
+  .control-card.sheet-collapsed {
+    transform: translateY(calc(92dvh - 88px));
+  }
+
+  .sheet-handle {
+    align-items: center;
+    cursor: grab;
+    display: flex;
+    flex-direction: column;
+    height: 28px;
+    justify-content: center;
+    padding-top: 8px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    width: 100%;
+  }
+
+  .sheet-handle:active {
+    cursor: grabbing;
+  }
+
+  .sheet-handle-grip {
+    background: rgba(21, 21, 21, 0.32);
+    height: 5px;
+    width: 44px;
+  }
+
+  .sheet-body {
+    -webkit-overflow-scrolling: touch;
+    height: calc(92dvh - 28px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 14px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  /* When collapsed, don't let inner content steal scroll/focus */
+  .control-card.sheet-collapsed .sheet-body {
+    overflow: hidden;
+    pointer-events: none;
   }
 
   .route-title {
@@ -443,14 +519,7 @@ textarea {
   }
 
   .tim-character-card {
-    bottom: calc(104px + env(safe-area-inset-bottom));
-    left: calc(12px + env(safe-area-inset-left));
-    height: 92px;
-    max-width: 74px;
-  }
-
-  .tim-character-thumb {
-    height: 82px;
+    display: none;
   }
 
   .recenter-button {
