@@ -1,3 +1,4 @@
+import os
 from typing import Literal
 
 import requests
@@ -29,14 +30,34 @@ NYC_BOUNDS = {
 
 app = FastAPI(title="Shortcut Bike Router API")
 
+_DEFAULT_CORS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+
+def _cors_allow_origins() -> list[str]:
+    """Default localhost + extra origins from CORS_ALLOW_ORIGINS (comma-separated)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for origin in _DEFAULT_CORS:
+        if origin not in seen:
+            seen.add(origin)
+            out.append(origin)
+    extra = os.environ.get("CORS_ALLOW_ORIGINS", "")
+    for part in extra.split(","):
+        o = part.strip()
+        if o and o not in seen:
+            seen.add(o)
+            out.append(o)
+    return out
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origins=_cors_allow_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
