@@ -10,6 +10,7 @@ An MVP web app for OSM-based bike routing in NYC. It lets a user search for or c
 - **Search** uses a FastAPI proxy to Photon for OSM-based start and destination suggestions.
 - **Map styles** include OSM Standard, Carto Light, Carto Dark, and CyclOSM.
 - **Current location** can be used as the start point, and the map has a recenter button for the user's browser location.
+- **Tim overlays** use `frontend/public/CitiBikeTim.png` beside the title and `frontend/public/healthBarTim.png` as the bottom-left character card.
 
 Shortcut Mode is experimental. It may include wrong-way or non-standard segments that conflict with mapped one-way directionality. Use judgment and obey local laws.
 

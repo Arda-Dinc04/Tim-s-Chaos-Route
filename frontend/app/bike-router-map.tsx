@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import {
   AlertTriangle,
   Bike,
@@ -136,17 +138,11 @@ function FitRoutes({ routes }: { routes: RouteResponse | null }) {
 function PointMarker({ point, kind }: { point: Point; kind: SearchField }) {
   const icon = useMemo(
     () =>
-      kind === "start"
-        ? L.divIcon({
-            className: "",
-            html: `<div class="start-avatar-marker"><img src="/start-avatar.png" onerror="this.onerror=null;this.src='/start-avatar.svg';" alt="Start" /></div>`,
-            iconAnchor: [24, 58],
-          })
-        : L.divIcon({
-            className: "",
-            html: '<div class="point-marker end">B</div>',
-            iconAnchor: [15, 15],
-          }),
+      L.divIcon({
+        className: "",
+        html: `<div class="point-marker ${kind}">${kind === "start" ? "A" : "B"}</div>`,
+        iconAnchor: [15, 15],
+      }),
     [kind],
   );
 
@@ -590,8 +586,21 @@ export default function BikeRouterMap() {
       </MapContainer>
 
       <aside className={`route-title route-title-${titleTone}`}>
-        <h2>Tim&rsquo;s Chaos Route</h2>
-        <p>Wear a helmet dumbass</p>
+        <div>
+          <h2>Tim&rsquo;s Chaos Route</h2>
+          <p>Wear a helmet dumbass</p>
+        </div>
+        <img
+          alt="Tim on a bike"
+          src="/CitiBikeTim.png"
+        />
+      </aside>
+
+      <aside className="tim-character-card" aria-label="Tim status character">
+        <img
+          alt="Tim status character"
+          src="/healthBarTim.png"
+        />
       </aside>
 
       <button
