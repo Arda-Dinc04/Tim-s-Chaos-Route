@@ -1,0 +1,332 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --panel: rgba(255, 255, 255, 0.94);
+  --ink: #151515;
+  --muted: #666666;
+  --legal: #006b5f;
+  --shortcut: #d94124;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f4f1e8;
+  color: var(--ink);
+  font-family: ui-sans-serif, "Avenir Next", "Segoe UI", sans-serif;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #ded8ca;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px;
+}
+
+.point-marker {
+  align-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  color: #ffffff;
+  display: flex;
+  font-size: 11px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.point-marker.start {
+  background: var(--legal);
+}
+
+.point-marker.end {
+  background: #1e1e1e;
+}
+
+.start-avatar-marker {
+  align-items: flex-end;
+  display: flex;
+  height: 58px;
+  justify-content: center;
+  width: 48px;
+}
+
+.start-avatar-marker img {
+  display: block;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.32));
+  height: 58px;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+  width: 48px;
+}
+
+.user-location-marker {
+  background: #2f80ff;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 7px rgba(47, 128, 255, 0.24), 0 7px 18px rgba(0, 0, 0, 0.28);
+  height: 20px;
+  width: 20px;
+}
+
+.map-shell {
+  height: 100vh;
+  min-height: 620px;
+  overflow: hidden;
+  position: relative;
+}
+
+.control-card {
+  background: var(--panel);
+  border: 1px solid rgba(21, 21, 21, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  left: 16px;
+  max-width: min(390px, calc(100vw - 32px));
+  padding: 16px;
+  position: absolute;
+  top: 16px;
+  z-index: 900;
+}
+
+.route-title {
+  border-radius: 7px;
+  max-width: min(760px, calc(100vw - 32px));
+  padding: 12px 18px 14px;
+  pointer-events: none;
+  position: absolute;
+  right: 16px;
+  text-align: right;
+  top: 16px;
+  z-index: 1100;
+}
+
+.route-title h2 {
+  font-family: var(--font-luckiest-guy), "Cooper Black", "Arial Black", sans-serif;
+  font-size: clamp(30px, 4.2vw, 62px);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.route-title p {
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 800;
+  margin: 6px 0 0;
+}
+
+.route-title-light {
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(21, 21, 21, 0.1);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12);
+  color: #151515;
+}
+
+.route-title-dark {
+  background: rgba(8, 8, 8, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  color: #fff9e9;
+}
+
+.recenter-button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(21, 21, 21, 0.12);
+  border-radius: 8px;
+  bottom: 30px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  color: #151515;
+  cursor: pointer;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  position: absolute;
+  right: 16px;
+  transition: transform 160ms ease, background 160ms ease;
+  width: 44px;
+  z-index: 1050;
+}
+
+.recenter-button:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.recenter-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.stats-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stat-box {
+  background: rgba(21, 21, 21, 0.045);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.warning-card {
+  background: #fff1dc;
+  border: 1px solid rgba(217, 65, 36, 0.28);
+  border-radius: 6px;
+  color: #7d2719;
+  padding: 10px;
+}
+
+.search-field {
+  display: block;
+  position: relative;
+}
+
+.suggestion-list {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(21, 21, 21, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  left: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 4px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 1200;
+}
+
+.search-clear-button {
+  align-items: center;
+  background: rgba(21, 21, 21, 0.08);
+  border: 0;
+  border-radius: 999px;
+  color: #555555;
+  cursor: pointer;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+}
+
+.search-clear-button:hover,
+.search-clear-button:focus {
+  background: rgba(21, 21, 21, 0.15);
+  color: #151515;
+  outline: none;
+}
+
+.suggestion-item {
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #151515;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  padding: 9px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.suggestion-item:hover,
+.suggestion-item:focus {
+  background: rgba(21, 21, 21, 0.07);
+  outline: none;
+}
+
+.suggestion-item span {
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.location-start-button {
+  align-items: center;
+  background: rgba(21, 21, 21, 0.06);
+  border: 1px solid rgba(21, 21, 21, 0.1);
+  border-radius: 6px;
+  color: #151515;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 850;
+  gap: 7px;
+  justify-content: center;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.location-start-button:hover {
+  background: rgba(21, 21, 21, 0.1);
+}
+
+.location-start-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+@media (max-width: 700px) {
+  .map-shell {
+    min-height: 100vh;
+  }
+
+  .control-card {
+    bottom: 14px;
+    left: 12px;
+    max-height: calc(100vh - 28px);
+    overflow: auto;
+    top: auto;
+    width: calc(100vw - 24px);
+  }
+
+  .route-title {
+    left: 12px;
+    max-width: calc(100vw - 24px);
+    right: 12px;
+    text-align: left;
+    top: 12px;
+  }
+
+  .route-title h2 {
+    font-size: clamp(24px, 7.4vw, 40px);
+  }
+
+  .recenter-button {
+    bottom: auto;
+    right: 12px;
+    top: 106px;
+  }
+}
